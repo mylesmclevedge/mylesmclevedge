@@ -170,18 +170,6 @@ Graph.prototype.containsNode = function(node) {
 	return false;
 }
 
-Graph.prototype.getNeighbors(node) {
-	var result = [];
-	for(index in nodePairs) {
-		if(nodePairs[index].pair[0].equals(node) ||
-			 nodePairs[index].pair[0].equals(node)) {
-					result.push(nodePairs[index]);
-		}
-	}
-	
-	return result;
-}
-
 //////////////////
 //EVENT HANDLERS//
 //////////////////
