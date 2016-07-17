@@ -1,7 +1,7 @@
 //node and graph variables
 var nodes = [];
-var graph;
-var selected = null;
+var graph = new Graph();
+var selectedNode = null;
 var dragged = false;
 var statusOpts = {
 		unselected: '#52BAFF',
@@ -51,8 +51,6 @@ function drawGrid() {
 			ctx.rect(i,c,1,1);
 		}
 	}
-	ctx.stroke();
-}
 
 function drawNodes() {
 	for(node in nodes) {
@@ -60,20 +58,23 @@ function drawNodes() {
 		ctx.arc(nodes[node].xPixel, nodes[node].yPixel, radius, 0, 2 * Math.PI, false);
 		ctx.fillStyle = nodes[node].status;
 		ctx.shadowColor = '#999';
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetX = 3;
-    ctx.shadowOffsetY = 3;
+    ctx.shadowBlur = 20;
+    ctx.shadowOffsetX = 5;
+    ctx.shadowOffsetY = 5;
 		ctx.fill();
 		ctx.setLineDash([]);
-		ctx.lineWidth = 1;
+		ctx.lineWidth = 2;
+		ctx.strokeStyle = '#000000';
 		ctx.stroke();
 		ctx.closePath();
 	}
 }
 
 function drawConnections() {
-		for(pair in graph.nodePairs) {
-			if(graph.nodePairs[pair].final) {
+	for(graph in graphs) {
+		for(pair in graphs[graph].nodePairs) {
+
+			if(graphs[graph].nodePairs[pair].final) {
 				ctx.setLineDash([]);
 			}
 
@@ -82,12 +83,12 @@ function drawConnections() {
 			}
 
 			ctx.beginPath();
-			ctx.lineWidth = 1;
+			ctx.lineWidth = 2;
 			ctx.strokeStyle = '#000000';
-			ctx.moveTo(graph.nodePairs[pair].pair[0].xPixel,
-									graph.nodePairs[pair].pair[0].yPixel);
-			ctx.lineTo(graph.nodePairs[pair].pair[1].xPixel,
-									graph.nodePairs[pair].pair[1].yPixel)
+			ctx.moveTo(graphs[graph].nodePairs[pair].pair[0].xPixel,
+									graphs[graph].nodePairs[pair].pair[0].yPixel);
+			ctx.lineTo(graphs[graph].nodePairs[pair].pair[1].xPixel,
+									graphs[graph].nodePairs[pair].pair[1].yPixel)
 			ctx.stroke();
 			ctx.shadowColor = '#999';
 			ctx.shadowBlur = 20;
@@ -96,6 +97,7 @@ function drawConnections() {
 			ctx.fill();
 			ctx.closePath();
 		}
+	}
 }
 
 ////////////////////
@@ -123,7 +125,7 @@ Node.prototype.addNeighbor = function(someNode) {
 
 Node.prototype.removeNeighbor = function(someNode) {
 	var i = this.neighbors.indexOf(someNode);
-  return i != -1 ? this.neighbors.splice(i,1) : false;
+        return i != -1 ? this.neighbors.splice(i,1) : false;
 }
 
 Node.prototype.isNeighbor = function(someNode) {
@@ -150,8 +152,8 @@ Graph.prototype.containsPair = function(node1, node2) {
 			var thisNode1 = this.nodePairs[index].pair[0];
 			var thisNode2 = this.nodePairs[index].pair[1];
 
-			if(thisNode1.equalTo(node1) && thisNode2.equalTo(node2) ||
-			   thisNode1.equalTo(node2) && thisNode2.equalTo(node1)) {
+			if(thisNode1.equals(node1) && thisNode2.equals(node2) ||
+			   thisNode1.equals(node2) && thisNode2.equals(node1)) {
 				 return true;
 			}
 	}
@@ -160,27 +162,25 @@ Graph.prototype.containsPair = function(node1, node2) {
 
 Graph.prototype.containsNode = function(node) {
 	for(index in this.nodePairs) {
-			if(this.nodePairs[i].pair[0].equalTo(node) ||
-			   this.nodePairs[i].pair[1].equalTo(node)) {
+			if(this.nodePairs[i].pair[0].equals(node) ||
+			   this.nodePairs[i].pair[1].equals(node)) {
 					return true;
 			}
 	}
 	return false;
 }
 
-Graph.prototype.getNeighbors = function(node) {
+Graph.prototype.getNeighbors(node) {
 	var result = [];
 	for(index in nodePairs) {
-		if(nodePairs[index].pair[0].equalTo(node) ||
-			 nodePairs[index].pair[0].equalTo(node)) {
+		if(nodePairs[index].pair[0].equals(node) ||
+			 nodePairs[index].pair[0].equals(node)) {
 					result.push(nodePairs[index]);
 		}
 	}
-
+	
 	return result;
 }
-
-graph = new Graph();
 
 //////////////////
 //EVENT HANDLERS//
@@ -197,6 +197,9 @@ function mouseDown(event) {
 	   var dist = distFrom(coords.x,coords.y,nodes[i].xPixel,nodes[i].yPixel);
 	   //true if click was in node
 		 if(dist < radius) {
+        selected.status = statusOpts.unselected;
+        selected = nodes[i];
+        selected.status = statusOpts.selected;
 	      cvs.onmousemove = function(event){moveNode(i,event);};
 	      loop = false;
 	   }
@@ -204,7 +207,7 @@ function mouseDown(event) {
 	}
 }
 
-function moveNode(i,event) {
+function moveNode(node,event) {
   var coords = canvas.relMouseCoords(event);
   dragged = true;
 
@@ -223,10 +226,10 @@ function mouseUp(event) {
         	if(nodes.length == 0) {
 		      	var newNode = new Node(coords.x,coords.y);
 		      	nodes.push(newNode);
+		      	redrawAll();
 	      	}
 
 	      	else {
-						var overlap = false;
 		      //check each existing node to make sure new node doesn't overlap
 		      	for(node in nodes) {
 			    		var dist = distFrom(coords.x,coords.y,nodes[node].xPixel,nodes[node].yPixel);
@@ -238,9 +241,8 @@ function mouseUp(event) {
                   selected.status = statusOpts.unselected;
                 }
                 selected = nodes[node];
-								console.log(selected);
                 selected.status = statusOpts.selected;
-								overlap = true;
+                break;
 		          }
 
 		          	//if new node would overlap
@@ -249,22 +251,23 @@ function mouseUp(event) {
 		          		selected.status = statusOpts.unselected;
 		          	}
 		          	selected = null;
-								overlap = true;
 		          }
-	        	}
-						if(!selected && !overlap) {
-							var newNode = new Node(coords.x,coords.y);
-							nodes.push(newNode);
-						}
-						else if(selected && !overlap) {
-							selected.status = statusOpts.unselected;
-							selected = null;
-						}
-        	}
-				}
+		        }
+
+		        if(!selected) {
+			        var newNode = new Node(coords.x,coords.y);
+			        nodes.push(newNode);
+		        }
+
+		        else {
+              selected.status = statusOpts.unselected;
+			        selected = null;
+		        }
+	        }
+        }
+
         dragged = false;
         cvs.onmousemove = null;
-				console.log(selected);
         redrawAll();
 }
 
