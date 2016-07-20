@@ -20,13 +20,10 @@ var div = document.getElementById("container");
 var header = document.getElementById("header");
 var headerHeight = header.offsetHeight;
 var headerMargin = parseInt(window.getComputedStyle(header).marginTop) * 2;
-console.log(headerHeight);
-console.log(window.innerHeight);
-console.log(window.getComputedStyle(header).marginTop);
 div.style.height = (window.innerHeight - headerHeight - headerMargin) + "px";
-console.log(div.style.height);
 cvs.width = parseInt(window.getComputedStyle(div).width) - 400;
 cvs.height = div.offsetHeight - 30;
+document.getElementById('textarea').style.height = cvs.height + 'px';
 drawGrid();
 
 ///////////////////
@@ -163,7 +160,6 @@ function keyEvent(event) {
         dijkstra(nodes[0]);
         redrawAll();
 }
-
 
 function moveNode(i,event,edgesToMove) {
         var coords = canvas.relMouseCoords(event);
@@ -364,7 +360,7 @@ HTMLCanvasElement.prototype.relMouseCoords = relMouseCoords;
 //////////////
 //ALGORITHMS//
 //////////////
-/*
+
 function dijkstra(aNode) {
         var finalVertices = new Array();
         var finaledgesToMove = new Array();
@@ -469,4 +465,4 @@ function dijkstra(aNode) {
                 }
                 redrawAll();
         }
-} */
+} 
