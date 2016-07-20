@@ -6,11 +6,16 @@
   		<meta name="author" content="mylesm">
   		<meta name="description" content="interactive demonstration of dijkstra's shortest path algorithm">
   		<meta name="keywords" content="dijkstra,shortest,path,graph">
+			<link rel="stylesheet" type="text/css" href="style.css" media="screen" />
 		<script type="text/javascript" src="script.js" async></script>
 	</head>
 	<body onkeydown="keyEvent(event)">
-  		<canvas id="canvas" style="border:2px solid black;margin-left:auto;margin-right:auto;display: block;"
+		<h1 id="header">Dijkstra's Algorithm</h1>
+		<div id="container">
+  		<canvas id="canvas"
 			onmousedown="mouseDown(event)" onmouseup="mouseUp(event)">
-		</canvas>
+			</canvas>
+			<textarea id="textarea" cols="30" READONLY>Testing&#13;&#10;testing</textarea>
+		</div>
 	</body>
-</html(
+</html>
