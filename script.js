@@ -1,31 +1,32 @@
-//node and graph variables
 var nodes = [];
-var graph;
-var selected = null;
-var dragged = false;
+var graphs = [];
+var lastNode = null;
 var statusOpts = {
-		unselected: '#52BAFF',
-		selected: '#003366'
+		unconnected: "u",
+		connected: "c",
+		selected: "s"
 };
 
 //graphic variables
 var radius = 20;
+var connectedColor = '#52BAFF';   //blue
+var selectedColor = '#F4FA58';	  //yellow
+var unconnectedColor = '#FFFFFF'; //white
 
-//initialize and size elements
+//initialize canvas and draw the background
 var cvs = document.getElementById("canvas");
 var ctx = canvas.getContext("2d");
 var div = document.getElementById("container");
 var header = document.getElementById("header");
-var textarea = document.getElementById('textarea');
-
 var headerHeight = header.offsetHeight;
 var headerMargin = parseInt(window.getComputedStyle(header).marginTop) * 2;
-
+console.log(headerHeight);
+console.log(window.innerHeight);
+console.log(window.getComputedStyle(header).marginTop);
 div.style.height = (window.innerHeight - headerHeight - headerMargin) + "px";
-cvs.width = parseInt(window.getComputedStyle(div).width) - 350;
+console.log(div.style.height);
+cvs.width = parseInt(window.getComputedStyle(div).width) - 400;
 cvs.height = div.offsetHeight - 30;
-textarea.style.height = cvs.height + 'px';
-
 drawGrid();
 
 ///////////////////
@@ -34,8 +35,12 @@ drawGrid();
 function redrawAll() {
 	clearAll();
 	drawGrid();
-	drawConnections();
-	drawNodes();
+
+        //loop
+	for(node in nodes) {
+		nodes[node].drawNode();
+                nodes[node].drawText();
+	}
 }
 
 function clearAll() {
@@ -51,51 +56,14 @@ function drawGrid() {
 			ctx.rect(i,c,1,1);
 		}
 	}
+
+/*
+function drawNodes(nodes) {}
+
+function drawConnections(graphs)
+*/
 	ctx.stroke();
-}
-
-function drawNodes() {
-	for(node in nodes) {
-		ctx.beginPath();
-		ctx.arc(nodes[node].xPixel, nodes[node].yPixel, radius, 0, 2 * Math.PI, false);
-		ctx.fillStyle = nodes[node].status;
-		ctx.shadowColor = '#999';
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetX = 3;
-    ctx.shadowOffsetY = 3;
-		ctx.fill();
-		ctx.setLineDash([]);
-		ctx.lineWidth = 1;
-		ctx.stroke();
-		ctx.closePath();
-	}
-}
-
-function drawConnections() {
-		for(pair in graph.nodePairs) {
-			if(graph.nodePairs[pair].final) {
-				ctx.setLineDash([]);
-			}
-
-			else {
-				ctx.setLineDash([10,15]);
-			}
-
-			ctx.beginPath();
-			ctx.lineWidth = 1;
-			ctx.strokeStyle = '#000000';
-			ctx.moveTo(graph.nodePairs[pair].pair[0].xPixel,
-									graph.nodePairs[pair].pair[0].yPixel);
-			ctx.lineTo(graph.nodePairs[pair].pair[1].xPixel,
-									graph.nodePairs[pair].pair[1].yPixel)
-			ctx.stroke();
-			ctx.shadowColor = '#999';
-			ctx.shadowBlur = 20;
-			ctx.shadowOffsetX = 5;
-			ctx.shadowOffsetY = 5;
-			ctx.fill();
-			ctx.closePath();
-		}
+	ctx.closePath();
 }
 
 ////////////////////
@@ -104,7 +72,7 @@ function drawConnections() {
 var Node = function(xPixel,yPixel) {
   	this.xPixel = xPixel;
  		this.yPixel = yPixel;
-  	this.status = statusOpts.unselected; //new nodes start white by default
+  	this.status = statusOpts.unconnected; //new nodes start white by default
   	this.neighbors = new Array();
   	this.visited = false;
 }
@@ -123,13 +91,35 @@ Node.prototype.addNeighbor = function(someNode) {
 
 Node.prototype.removeNeighbor = function(someNode) {
 	var i = this.neighbors.indexOf(someNode);
-  return i != -1 ? this.neighbors.splice(i,1) : false;
+        return i != -1 ? this.neighbors.splice(i,1) : false;
 }
 
 Node.prototype.isNeighbor = function(someNode) {
 	return this.neighbors.indexOf(someNode) == -1 ? false : true;
 }
 
+/*
+Node.prototype.drawNode = function() {
+	ctx.beginPath();
+     	ctx.arc(this.xPixel, this.yPixel, radius, 0, 2 * Math.PI, false);
+     	ctx.fillStyle = this.color;
+      	ctx.fill();
+      	ctx.setLineDash([]);
+      	ctx.lineWidth = 2;
+      	ctx.strokeStyle = '#000000';
+	ctx.stroke();
+	ctx.closePath();
+}*//*
+
+Node.prototype.drawText = function() {
+        ctx.fillStyle = "#111111";
+        ctx.font = "bold 11px Arial";
+				if(this.distance[0] != 10000) {
+        	var str = (Math.round(this.distance[0])).toString();
+        	ctx.fillText(str, this.xPixel - 5, this.yPixel + 5);
+				}
+}
+*/
 ////////////////////
 //GRAPH DEFINITION//
 ////////////////////
@@ -141,7 +131,6 @@ Graph.prototype.addPair = function(node1, node2) {
 		if(!this.containsPair(node1, node2)){
 			var distance = distFrom(node1.xCoord, node1.yCoord, node2.xCoord, node2.yCoord);
 			this.nodePairs.push({pair: [node1, node2], final: false, dist: distance});
-			makeNeighbors(node1, node2);
 	  }
 }
 
@@ -150,9 +139,9 @@ Graph.prototype.containsPair = function(node1, node2) {
 			var thisNode1 = this.nodePairs[index].pair[0];
 			var thisNode2 = this.nodePairs[index].pair[1];
 
-			if(thisNode1.equalTo(node1) && thisNode2.equalTo(node2) ||
-			   thisNode1.equalTo(node2) && thisNode2.equalTo(node1)) {
-				 return true;
+			if(thisNode1.equals(node1) && thisNode2.equals(node2) ||
+			   thisNode1.equals(node2) && thisNode2.equals(node1)) {
+					return true;
 			}
 	}
 	return false;
@@ -160,112 +149,176 @@ Graph.prototype.containsPair = function(node1, node2) {
 
 Graph.prototype.containsNode = function(node) {
 	for(index in this.nodePairs) {
-			if(this.nodePairs[i].pair[0].equalTo(node) ||
-			   this.nodePairs[i].pair[1].equalTo(node)) {
+			if(this.nodePairs[i].pair[0].equals(node) || this.nodePairs[i].pair[1].equals(node)) {
 					return true;
 			}
 	}
 	return false;
 }
 
-Graph.prototype.getNeighbors = function(node) {
-	var result = [];
-	for(index in nodePairs) {
-		if(nodePairs[index].pair[0].equalTo(node) ||
-			 nodePairs[index].pair[0].equalTo(node)) {
-					result.push(nodePairs[index]);
-		}
-	}
-
-	return result;
-}
-
-graph = new Graph();
-
 //////////////////
 //EVENT HANDLERS//
 //////////////////
 function keyEvent(event) {
+        dijkstra(nodes[0]);
+        redrawAll();
+}
 
+
+function moveNode(i,event,edgesToMove) {
+        var coords = canvas.relMouseCoords(event);
+        moved = true;
+        makingPath = false;
+}
+
+function moveNode(i,event,edgesToMove) {
+        var coords = canvas.relMouseCoords(event);
+        moved = true;
+        makingPath = false;
+        if(lastNode && lastNode.neighbors.length > 0) {
+                lastNode.color = connectedColor;
+        }
+        else if(lastNode) {
+                lastNode.color = unconnectedColor;
+        }
+        lastNode = null;
+
+        nodes[i].xPixel = coords.x;
+        nodes[i].yPixel = coords.y;
+
+        for(edge in edgesToMove) {
+                if(edgesToMove[edge][1] == 0) {
+                	edgesToMove[edge][0].x1 = coords.x;
+                        edgesToMove[edge][0].y1 = coords.y;
+                }
+                else {
+                        edgesToMove[edge][0].x2 = coords.x;
+                        edgesToMove[edge][0].y2 = coords.y;
+                }
+        }
+
+redrawAll();
 }
 
 function mouseDown(event) {
-  var coords = canvas.relMouseCoords(event);
-  var loop = true;
-  var i = 0;
-	while(loop && i < nodes.length) {
-	   var dist = distFrom(coords.x,coords.y,nodes[i].xPixel,nodes[i].yPixel);
-	   //true if click was in node
-		 if(dist < radius) {
-	      cvs.onmousemove = function(event){moveNode(i,event);};
-	      loop = false;
-	   }
-	   else i++;
-	}
-}
-
-function moveNode(i,event) {
-  var coords = canvas.relMouseCoords(event);
-  dragged = true;
-
-  nodes[i].xPixel = coords.x;
-  nodes[i].yPixel = coords.y;
-
-  redrawAll();
+        var coords = canvas.relMouseCoords(event);
+        var loop = true;
+        var i = 0;
+        if(nodes.length > 0) {
+		//loop through all nodes and see if any were clicked
+                while(loop && i < nodes.length) {
+		        var dist = distFrom(coords.x,coords.y,nodes[i].xPixel,nodes[i].yPixel);
+                        //true if click was in node
+			if(dist < radius) {
+                                var edgesToMove = new Array();
+				//loop through edges and push any that connect to clicked node
+                                for(connect in edges) {
+                                        var theIndex = edges[connect].nodesArr.indexOf(nodes[i]);
+                                        if(theIndex == 0) {
+                                                edgesToMove.push([edges[connect],0]);
+                                        }
+                                        else if(theIndex == 1) {
+                                                edgesToMove.push([edges[connect],1]);
+                                        }
+                                }
+				//attach mousemove listener to redraw node if dragged
+                                cvs.onmousemove = function(event){moveNode(i,event,edgesToMove);};
+                        loop = false;
+                        }
+                        else i++;
+                }
+        }
 }
 
 function mouseUp(event) {
-        if(!dragged) {
-        	dragged = false;
-        	cvs.onmousemove = null;
+        if(!moved) {
+
+        moved = false;
+        cvs.onmousemove = null;
         	var coords = canvas.relMouseCoords(event);
 
-        	if(nodes.length == 0) {
-		      	var newNode = new Node(coords.x,coords.y);
-		      	nodes.push(newNode);
-	      	}
+            	if(nodes.length == 0) {
+		        var newNode = new Node(coords.x,coords.y);
+		        nodes.push(newNode);
+		        redrawAll();
+		        return true;
+	        }
 
-	      	else {
-						var overlap = false;
-		      //check each existing node to make sure new node doesn't overlap
-		      	for(node in nodes) {
-			    		var dist = distFrom(coords.x,coords.y,nodes[node].xPixel,nodes[node].yPixel);
+	        else {
+		        //check each existing node to make sure new node doesn't overlap
+		        for(node in nodes) {
+			        var dist = distFrom(coords.x,coords.y,nodes[node].xPixel,nodes[node].yPixel);
 
-			    		//if click is inside a node, fill the node
-			    		if(dist < radius) {
-                if(selected) {
-                  graph.addPair(selected, nodes[node]);
-                  selected.status = statusOpts.unselected;
-                }
-                selected = nodes[node];
-								console.log(selected);
-                selected.status = statusOpts.selected;
-								overlap = true;
-		          }
+			        //if click is inside a node, fill the node
+			        if(dist < radius) {
+					//connects two nodes if one is currently selected && they arent already neighbors &&
+				        //click isnt inside lastNode
+					if(makingPath && !nodes[node].isNeighbor(lastNode) && !nodes[node].equalTo(lastNode)) {
+					        var newConnect = new Connection(lastNode,nodes[node]);
+					        edges.push(newConnect);
+				        }
+					//otherwise we are making path
+				        else {
+					        makingPath = true;
+				        }
+
+					//change color of last node if it was selected
+					//TODO store status of each node in node maybe instead of color
+				        if(lastNode) {
+					        lastNode.color = connectedColor;
+				        }
+
+					//selected node clicked on
+				        if(lastNode && nodes[node].equalTo(lastNode)) {
+					        lastNode = null;
+					        makingPath = false;
+					        if(nodes[node].neighbors.length == 0) {
+						        nodes[node].color = unconnectedColor;
+					        }
+					        redrawAll();
+					        return 0;
+				        }
+				        else {
+					        lastNode = nodes[node];
+					        nodes[node].color = selectedColor;
+					        redrawAll();
+		          			return 0;
+		          		}
+		          	}
 
 		          	//if new node would overlap
-		          else if(dist > radius && dist < 2 * radius) {
-		          	if(selected) {
-		          		selected.status = statusOpts.unselected;
+		          	else if(dist > radius && dist < 2 * radius) {
+		          		makingPath = false;
+		          		if(lastNode) {
+		          			lastNode.color = connectedColor;
+		          		}
+		          		lastNode = null;
+				        redrawAll();
+		          		return 0;
 		          	}
-		          	selected = null;
-								overlap = true;
-		          }
-	        	}
-						if(!selected && !overlap) {
-							var newNode = new Node(coords.x,coords.y);
-							nodes.push(newNode);
-						}
-						else if(selected && !overlap) {
-							selected.status = statusOpts.unselected;
-							selected = null;
-						}
-        	}
-				}
-        dragged = false;
+		        }
+
+		        if(!makingPath) {
+			        var newNode = new Node(coords.x,coords.y);
+			        nodes.push(newNode);
+			        newNode.color = unconnectedColor;
+			        redrawAll();
+			        return 1;
+		        }
+		        else {
+			        makingPath = false;
+			        if(lastNode != null) {
+		          		lastNode.color = connectedColor;
+		          	}
+			        lastNode = null;
+			        redrawAll();
+			        return 0;
+		        }
+	        }
+        }
+
+        moved = false;
         cvs.onmousemove = null;
-				console.log(selected);
-        redrawAll();
 }
 
 //////////////////
@@ -273,7 +326,7 @@ function mouseUp(event) {
 //////////////////
 makeNeighbors = function(node1,node2) {
 	node1.addNeighbor(node2);
-  node2.addNeighbor(node1);
+        node2.addNeighbor(node1);
 }
 
 distFrom = function(x1,y1,x2,y2) {
